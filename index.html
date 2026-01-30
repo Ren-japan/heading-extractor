@@ -504,7 +504,15 @@
                 </div>
 
                 <div class="note">
-                    <strong>注意:</strong> CORSの制限により、このツールはCORSプロキシを使用して見出しを取得します。一部のサイトでは取得できない場合があります。その場合は、見出しを手動で入力することもできます。
+                    <strong>注意:</strong> CORSの制限により、このツールはCORSプロキシを使用して見出しを取得します。一部のサイトでは取得できない場合があります。
+                </div>
+
+                <div style="margin-top: 16px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="include-body" checked style="width: 18px; height: 18px;">
+                        <span style="font-weight: 600;">本文も分析に含める</span>
+                        <span style="font-size: 12px; color: #666;">（精度が上がりますが、処理が少し遅くなります）</span>
+                    </label>
                 </div>
 
                 <button class="btn-primary" id="analyze-btn" onclick="startAnalysis()">
@@ -553,6 +561,7 @@
         // グローバル変数
         let articlesData = [];
         let cannibalizations = [];
+        let includeBodyText = true; // 本文も分析に含める
 
         // 入力方法の切り替え
         function switchInputMethod(method) {
@@ -611,6 +620,9 @@
                 return;
             }
 
+            // 本文取得オプション
+            includeBodyText = document.getElementById('include-body').checked;
+
             // UI更新
             document.getElementById('analyze-btn').disabled = true;
             document.getElementById('progress-section').style.display = 'block';
@@ -618,16 +630,17 @@
 
             articlesData = [];
 
-            // 各URLから見出しを取得
+            // 各URLから見出しと本文を取得
             for (let i = 0; i < urls.length; i++) {
                 updateProgress(i, urls.length);
 
                 try {
-                    const headings = await fetchHeadings(urls[i]);
+                    const pageData = await fetchPageContent(urls[i]);
                     articlesData.push({
                         url: urls[i],
-                        title: headings.title || urls[i],
-                        headings: headings.headings
+                        title: pageData.title || urls[i],
+                        headings: pageData.headings,
+                        bodyText: pageData.bodyText || ''
                     });
                 } catch (error) {
                     console.error(`Error fetching ${urls[i]}:`, error);
@@ -635,6 +648,7 @@
                         url: urls[i],
                         title: urls[i],
                         headings: [],
+                        bodyText: '',
                         error: error.message
                     });
                 }
@@ -663,8 +677,8 @@
             document.getElementById('progress-text').textContent = `${current} / ${total} ページを処理中`;
         }
 
-        // 見出し取得
-        async function fetchHeadings(url) {
+        // ページコンテンツ取得（見出し＋本文）
+        async function fetchPageContent(url) {
             // CORSプロキシを使用
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
 
@@ -676,45 +690,7 @@
                     throw new Error('ページを取得できませんでした');
                 }
 
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data.contents, 'text/html');
-
-                // タイトル取得
-                const title = doc.querySelector('title')?.textContent ||
-                             doc.querySelector('h1')?.textContent ||
-                             url;
-
-                // 見出し取得 (H1, H2, H3) - 共通ナビ要素を除外
-                const headings = [];
-                const excludePatterns = [
-                    /カテゴリー\s*一覧/i,
-                    /新着記事/i,
-                    /人気記事/i,
-                    /ランキング/i,
-                    /関連記事/i,
-                    /おすすめ記事/i,
-                    /最新記事/i,
-                    /アーカイブ/i,
-                    /タグ一覧/i,
-                    /サイドバー/i,
-                    /フッター/i,
-                    /メニュー/i
-                ];
-                doc.querySelectorAll('h1, h2, h3').forEach(h => {
-                    const text = h.textContent.trim();
-                    if (text && text.length > 0) {
-                        // 除外パターンに一致するかチェック
-                        const shouldExclude = excludePatterns.some(pattern => pattern.test(text));
-                        if (!shouldExclude) {
-                            headings.push({
-                                level: h.tagName.toLowerCase(),
-                                text: text
-                            });
-                        }
-                    }
-                });
-
-                return { title, headings };
+                return parsePageContent(data.contents, url);
             } catch (error) {
                 // フォールバック: 別のプロキシを試す
                 try {
@@ -722,47 +698,119 @@
                     const response = await fetch(fallbackUrl);
                     const html = await response.text();
 
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-
-                    const title = doc.querySelector('title')?.textContent ||
-                                 doc.querySelector('h1')?.textContent ||
-                                 url;
-
-                    // 見出し取得 (H2, H3) - 共通ナビ要素を除外
-                    const headings = [];
-                    const excludePatterns = [
-                        /カテゴリー\s*一覧/i,
-                        /新着記事/i,
-                        /人気記事/i,
-                        /ランキング/i,
-                        /関連記事/i,
-                        /おすすめ記事/i,
-                        /最新記事/i,
-                        /アーカイブ/i,
-                        /タグ一覧/i,
-                        /サイドバー/i,
-                        /フッター/i,
-                        /メニュー/i
-                    ];
-                    doc.querySelectorAll('h1, h2, h3').forEach(h => {
-                        const text = h.textContent.trim();
-                        if (text && text.length > 0) {
-                            const shouldExclude = excludePatterns.some(pattern => pattern.test(text));
-                            if (!shouldExclude) {
-                                headings.push({
-                                    level: h.tagName.toLowerCase(),
-                                    text: text
-                                });
-                            }
-                        }
-                    });
-
-                    return { title, headings };
+                    return parsePageContent(html, url);
                 } catch (e) {
                     throw new Error('取得失敗');
                 }
             }
+        }
+
+        // HTMLをパースして見出しと本文を抽出
+        function parsePageContent(html, url) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // タイトル取得
+            const title = doc.querySelector('title')?.textContent ||
+                         doc.querySelector('h1')?.textContent ||
+                         url;
+
+            // 除外パターン
+            const excludePatterns = [
+                /カテゴリー\s*一覧/i,
+                /新着記事/i,
+                /人気記事/i,
+                /ランキング/i,
+                /関連記事/i,
+                /おすすめ記事/i,
+                /最新記事/i,
+                /アーカイブ/i,
+                /タグ一覧/i,
+                /サイドバー/i,
+                /フッター/i,
+                /メニュー/i
+            ];
+
+            // 本文エリアを特定
+            const contentArea = doc.querySelector('article') ||
+                               doc.querySelector('main') ||
+                               doc.querySelector('.entry-content') ||
+                               doc.querySelector('.post-content') ||
+                               doc.querySelector('.article-content') ||
+                               doc.querySelector('.content') ||
+                               doc.querySelector('#content') ||
+                               doc.body;
+
+            // 見出し取得 (H1, H2, H3) - 本文エリア内から
+            const headings = [];
+            contentArea.querySelectorAll('h1, h2, h3').forEach(h => {
+                const text = h.textContent.trim();
+                if (text && text.length > 0) {
+                    const shouldExclude = excludePatterns.some(pattern => pattern.test(text));
+                    if (!shouldExclude) {
+                        headings.push({
+                            level: h.tagName.toLowerCase(),
+                            text: text
+                        });
+                    }
+                }
+            });
+
+            // 本文テキスト取得
+            let bodyText = '';
+            if (includeBodyText) {
+                // 不要な要素を削除してからテキスト取得
+                const contentClone = contentArea.cloneNode(true);
+
+                // 不要な要素を削除
+                const removeSelectors = [
+                    'script', 'style', 'nav', 'header', 'footer',
+                    '.sidebar', '#sidebar', '.widget', '.ad', '.advertisement',
+                    '.related-posts', '.related-articles', '.share-buttons',
+                    '.author-box', '.comment', '.comments', '.breadcrumb',
+                    'aside', '.menu', '.navigation'
+                ];
+                removeSelectors.forEach(selector => {
+                    contentClone.querySelectorAll(selector).forEach(el => el.remove());
+                });
+
+                // pタグの内容を取得（本文のメインコンテンツ）
+                const paragraphs = contentClone.querySelectorAll('p');
+                const pTexts = [];
+                paragraphs.forEach(p => {
+                    const text = p.textContent.trim();
+                    // 短すぎるもの（ナビやボタンなど）は除外
+                    if (text.length > 20) {
+                        pTexts.push(text);
+                    }
+                });
+
+                // テーブルの内容も取得（重要！地域記事などで重複しやすい）
+                const tables = contentClone.querySelectorAll('table');
+                tables.forEach(table => {
+                    const cells = table.querySelectorAll('td, th');
+                    cells.forEach(cell => {
+                        const text = cell.textContent.trim();
+                        if (text.length > 0) {
+                            pTexts.push(text);
+                        }
+                    });
+                });
+
+                // リストの内容も取得
+                const listItems = contentClone.querySelectorAll('li');
+                listItems.forEach(li => {
+                    const text = li.textContent.trim();
+                    if (text.length > 10 && text.length < 200) {
+                        pTexts.push(text);
+                    }
+                });
+
+                // 最大3000文字まで（テーブル・リスト含めて増やした）
+                bodyText = pTexts.join(' ').substring(0, 3000);
+            }
+
+            return { title, headings, bodyText };
         }
 
         // スリープ関数
@@ -783,13 +831,29 @@
                         continue;
                     }
 
-                    const similarity = calculateSimilarity(article1.headings, article2.headings);
+                    const headingSimilarity = calculateHeadingSimilarity(article1.headings, article2.headings);
                     const matchingHeadings = findMatchingHeadings(article1.headings, article2.headings);
+
+                    // 本文の類似度も計算
+                    let bodySimilarity = 0;
+                    if (includeBodyText && article1.bodyText && article2.bodyText) {
+                        bodySimilarity = calculateBodySimilarity(article1.bodyText, article2.bodyText);
+                    }
+
+                    // 総合スコア: 見出し60% + 本文40%（本文がある場合）
+                    let similarity;
+                    if (includeBodyText && article1.bodyText && article2.bodyText) {
+                        similarity = Math.round(headingSimilarity * 0.6 + bodySimilarity * 0.4);
+                    } else {
+                        similarity = headingSimilarity;
+                    }
 
                     cannibalizations.push({
                         article1,
                         article2,
                         similarity,
+                        headingSimilarity,
+                        bodySimilarity,
                         matchingHeadings
                     });
                 }
@@ -799,8 +863,87 @@
             cannibalizations.sort((a, b) => b.similarity - a.similarity);
         }
 
-        // 類似度計算 (複合スコア: キーワード一致 + N-gram類似度)
-        function calculateSimilarity(headings1, headings2) {
+        // 本文類似度計算
+        function calculateBodySimilarity(body1, body2) {
+            if (!body1 || !body2) return 0;
+
+            const text1 = normalizeText(body1);
+            const text2 = normalizeText(body2);
+
+            // 1. キーワード一致率
+            const keywords1 = extractKeywords(text1);
+            const keywords2 = extractKeywords(text2);
+
+            let keywordMatches = 0;
+            for (const kw of keywords1) {
+                if (keywords2.has(kw)) keywordMatches++;
+            }
+            const keywordSim = keywords1.size > 0
+                ? keywordMatches / Math.max(keywords1.size, keywords2.size)
+                : 0;
+
+            // 2. N-gram類似度
+            const ngramSim = textSimilarity(text1, text2);
+
+            // 3. 数字・固有名詞の一致（地域名、金額、年数など）
+            const specificData1 = extractSpecificData(body1);
+            const specificData2 = extractSpecificData(body2);
+
+            let dataMatches = 0;
+            for (const d of specificData1) {
+                if (specificData2.has(d)) dataMatches++;
+            }
+            const dataSim = specificData1.size > 0
+                ? dataMatches / Math.max(specificData1.size, specificData2.size)
+                : 0;
+
+            // 総合スコア
+            return (keywordSim * 0.3 + ngramSim * 0.3 + dataSim * 0.4) * 100;
+        }
+
+        // 具体的なデータ（数字、地域名、固有名詞など）を抽出
+        function extractSpecificData(text) {
+            const data = new Set();
+
+            // 金額パターン（〇〇万円、〇〇円など）
+            const moneyPatterns = text.match(/\d+(?:,\d{3})*(?:万)?円/g) || [];
+            moneyPatterns.forEach(m => data.add(m));
+
+            // パーセンテージ
+            const percentPatterns = text.match(/\d+(?:\.\d+)?%/g) || [];
+            percentPatterns.forEach(p => data.add(p));
+
+            // 年数・期間（〇年、〇ヶ月など）
+            const periodPatterns = text.match(/\d+(?:年|ヶ月|か月|カ月|日|時間|週間)/g) || [];
+            periodPatterns.forEach(p => data.add(p));
+
+            // 都道府県・地域名
+            const prefectures = [
+                '北海道', '青森', '岩手', '宮城', '秋田', '山形', '福島',
+                '茨城', '栃木', '群馬', '埼玉', '千葉', '東京', '神奈川',
+                '新潟', '富山', '石川', '福井', '山梨', '長野', '岐阜',
+                '静岡', '愛知', '三重', '滋賀', '京都', '大阪', '兵庫',
+                '奈良', '和歌山', '鳥取', '島根', '岡山', '広島', '山口',
+                '徳島', '香川', '愛媛', '高知', '福岡', '佐賀', '長崎',
+                '熊本', '大分', '宮崎', '鹿児島', '沖縄'
+            ];
+            prefectures.forEach(pref => {
+                if (text.includes(pref)) data.add(pref);
+            });
+
+            // 人数
+            const peoplePatterns = text.match(/\d+(?:,\d{3})*人/g) || [];
+            peoplePatterns.forEach(p => data.add(p));
+
+            // 件数
+            const countPatterns = text.match(/\d+(?:,\d{3})*件/g) || [];
+            countPatterns.forEach(c => data.add(c));
+
+            return data;
+        }
+
+        // 見出し類似度計算 (複合スコア: キーワード一致 + N-gram類似度)
+        function calculateHeadingSimilarity(headings1, headings2) {
             const texts1 = headings1.map(h => normalizeText(h.text));
             const texts2 = headings2.map(h => normalizeText(h.text));
 
@@ -1002,10 +1145,18 @@
                     `;
                 }
 
+                // 類似度の内訳表示
+                const breakdownHtml = includeBodyText && c.bodySimilarity > 0 ? `
+                    <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                        見出し: ${c.headingSimilarity}% / 本文: ${Math.round(c.bodySimilarity)}%
+                    </div>
+                ` : '';
+
                 return `
                     <div class="cannibalization-item">
                         <div class="cannibalization-header">
-                            <span>${riskLevel} ${riskLabel}</span>
+                            <span>${riskLevel} ${riskLabel} (${c.similarity}%)</span>
+                            ${breakdownHtml}
                             ${showBadge ? `<span class="similarity-badge ${badgeClass}">${riskLabel}</span>` : ''}
                         </div>
                         <div class="article-pair">
