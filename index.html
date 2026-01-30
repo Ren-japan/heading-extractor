@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>記事カニバリ検知ツール</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #E9E9E9;
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #000;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #000;
+            text-align: left;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+        }
+
+        .card {
+            background: #fff;
+            border: 3px solid #000;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            color: #000;
+            margin-bottom: 24px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 3px solid #000;
+            padding-bottom: 12px;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .input-method {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .input-method button {
+            padding: 12px 24px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.15s ease;
+        }
+
+        .input-method button.active {
+            background: #000;
+            color: #fff;
+        }
+
+        .input-method button:hover {
+            background: #000;
+            color: #fff;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 16px;
+            border: 2px solid #000;
+            font-size: 14px;
+            resize: vertical;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            background: #fff;
+        }
+
+        textarea:focus {
+            outline: none;
+            box-shadow: 4px 4px 0 #000;
+        }
+
+        .file-input-wrapper {
+            border: 2px dashed #000;
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: #fff;
+        }
+
+        .file-input-wrapper:hover {
+            background: #f5f5f5;
+            box-shadow: 4px 4px 0 #000;
+        }
+
+        .file-input-wrapper input {
+            display: none;
+        }
+
+        .btn-primary {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 16px 40px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 4px 4px 0 #333;
+            transform: translate(-2px, -2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-section {
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #ddd;
+            margin: 16px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #000;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .threshold-control {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f5f5f5;
+            border: 2px solid #000;
+        }
+
+        .threshold-control label {
+            font-weight: 700;
+            color: #000;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .cannibalization-item {
+            border: 2px solid #000;
+            padding: 24px;
+            margin-bottom: 16px;
+            background: #fff;
+            transition: all 0.15s ease;
+        }
+
+        .cannibalization-item:hover {
+            box-shadow: 4px 4px 0 #000;
+            transform: translate(-2px, -2px);
+        }
+
+        .cannibalization-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #000;
+        }
+
+        .cannibalization-header span:first-child {
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .similarity-badge {
+            padding: 6px 16px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .similarity-high {
+            background: #000;
+            color: #fff;
+        }
+
+        .similarity-medium {
+            background: #333;
+            color: #fff;
+        }
+
+        .similarity-low {
+            background: #E9E9E9;
+            color: #000;
+            border: 1px solid #000;
+        }
+
+        .solution-box {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f5f5f5;
+            border-left: 4px solid #000;
+        }
+
+        .solution-box h4 {
+            color: #000;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .solution-box ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .solution-box li {
+            margin-bottom: 6px;
+        }
+
+        .article-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .article-box {
+            background: #f5f5f5;
+            padding: 16px;
+            border: 1px solid #ccc;
+        }
+
+        .article-box h4 {
+            font-size: 0.7rem;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+        }
+
+        .article-box a {
+            color: #000;
+            text-decoration: none;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .article-box a:hover {
+            text-decoration: underline;
+        }
+
+        .headings-list {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #444;
+        }
+
+        .headings-list li {
+            margin-left: 16px;
+            margin-bottom: 4px;
+        }
+
+        .matching-headings {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+
+        .matching-headings h4 {
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .matching-headings ul {
+            list-style: none;
+        }
+
+        .matching-headings li {
+            padding: 6px 0;
+            font-size: 12px;
+            color: #444;
+            border-bottom: 1px solid #eee;
+        }
+
+        .matching-headings li:last-child {
+            border-bottom: none;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 48px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .headings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .headings-table th,
+        .headings-table td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .headings-table th {
+            background: #000;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .headings-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: 2px solid #000;
+            border-right: none;
+            background: #fff;
+            color: #000;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.15s ease;
+        }
+
+        .tab-btn:last-of-type {
+            border-right: 2px solid #000;
+        }
+
+        .tab-btn.active {
+            background: #000;
+            color: #fff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .export-btn {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .export-btn:hover {
+            box-shadow: 3px 3px 0 #333;
+            transform: translate(-1px, -1px);
+        }
+
+        .error-message {
+            background: #fff;
+            border: 2px solid #000;
+            border-left: 6px solid #000;
+            color: #000;
+            padding: 16px;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .note {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 16px;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .note strong {
+            color: #000;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .article-pair {
+                grid-template-columns: 1fr;
+            }
+
+            .input-method {
+                flex-direction: column;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>記事カニバリ検知ツール</h1>
+
+        <div class="card">
+            <h2>1. URLを入力</h2>
+            <div class="input-section">
+                <div class="input-method">
+                    <button id="btn-text" class="active" onclick="switchInputMethod('text')">テキスト入力</button>
+                    <button id="btn-csv" onclick="switchInputMethod('csv')">CSVアップロード</button>
+                </div>
+
+                <div id="text-input">
+                    <textarea id="url-input" placeholder="URLを1行に1つずつ入力してください&#10;&#10;例:&#10;https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"></textarea>
+                </div>
+
+                <div id="csv-input" class="hidden">
+                    <div class="file-input-wrapper" onclick="document.getElementById('csv-file').click()">
+                        <input type="file" id="csv-file" accept=".csv,.txt" onchange="handleFileUpload(event)">
+                        <p>クリックしてCSVファイルを選択<br><small>（.csv または .txt）</small></p>
+                    </div>
+                    <p id="file-name" style="margin-top: 8px; color: #666;"></p>
+                </div>
+
+                <div class="note">
+                    <strong>注意:</strong> CORSの制限により、このツールはCORSプロキシを使用して見出しを取得します。一部のサイトでは取得できない場合があります。その場合は、見出しを手動で入力することもできます。
+                </div>
+
+                <button class="btn-primary" id="analyze-btn" onclick="startAnalysis()">
+                    見出しを収集して分析
+                </button>
+            </div>
+        </div>
+
+        <div class="card progress-section" id="progress-section">
+            <h2>処理中...</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <p class="progress-text" id="progress-text">0 / 0 ページを処理中</p>
+        </div>
+
+        <div class="card results-section" id="results-section">
+            <h2>分析結果</h2>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('cannibalization')">カニバリ検出</button>
+                <button class="tab-btn" onclick="switchTab('headings')">見出し一覧</button>
+                <button class="export-btn" onclick="exportResults()">カニバリCSV</button>
+                <button class="export-btn" onclick="exportHeadingsList()">見出しCSV</button>
+            </div>
+
+            <div id="cannibalization-tab" class="tab-content active">
+                <div class="threshold-control">
+                    <label>表示フィルター:</label>
+                    <select id="filter-level" onchange="displayCannibalizations()" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="40">◎○ 要対策・要確認のみ</option>
+                        <option value="20">◎○△ すべて表示</option>
+                        <option value="60">◎ 要対策のみ</option>
+                    </select>
+                </div>
+                <div id="cannibalization-results"></div>
+            </div>
+
+            <div id="headings-tab" class="tab-content">
+                <div id="headings-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let articlesData = [];
+        let cannibalizations = [];
+
+        // 入力方法の切り替え
+        function switchInputMethod(method) {
+            document.getElementById('btn-text').classList.toggle('active', method === 'text');
+            document.getElementById('btn-csv').classList.toggle('active', method === 'csv');
+            document.getElementById('text-input').classList.toggle('hidden', method !== 'text');
+            document.getElementById('csv-input').classList.toggle('hidden', method !== 'csv');
+        }
+
+        // ファイルアップロード処理
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('file-name').textContent = `選択: ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                // CSVの場合は最初の列をURLとして扱う
+                const lines = content.split('\n');
+                const urls = lines.map(line => {
+                    const parts = line.split(',');
+                    return parts[0].trim().replace(/"/g, '');
+                }).filter(url => url && url.startsWith('http'));
+
+                document.getElementById('url-input').value = urls.join('\n');
+                switchInputMethod('text');
+            };
+            reader.readAsText(file);
+        }
+
+        // タブ切り替え
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+        }
+
+        // しきい値更新
+        function updateThreshold() {
+            const value = document.getElementById('threshold').value;
+            document.getElementById('threshold-value').textContent = `${value}%`;
+            displayCannibalizations();
+        }
+
+        // 分析開始
+        async function startAnalysis() {
+            const urlInput = document.getElementById('url-input').value.trim();
+            const urls = urlInput.split('\n').map(u => u.trim()).filter(u => u && u.startsWith('http'));
+
+            if (urls.length < 2) {
+                alert('少なくとも2つのURLを入力してください。');
+                return;
+            }
+
+            // UI更新
+            document.getElementById('analyze-btn').disabled = true;
+            document.getElementById('progress-section').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+
+            articlesData = [];
+
+            // 各URLから見出しを取得
+            for (let i = 0; i < urls.length; i++) {
+                updateProgress(i, urls.length);
+
+                try {
+                    const headings = await fetchHeadings(urls[i]);
+                    articlesData.push({
+                        url: urls[i],
+                        title: headings.title || urls[i],
+                        headings: headings.headings
+                    });
+                } catch (error) {
+                    console.error(`Error fetching ${urls[i]}:`, error);
+                    articlesData.push({
+                        url: urls[i],
+                        title: urls[i],
+                        headings: [],
+                        error: error.message
+                    });
+                }
+
+                // レート制限対策
+                await sleep(500);
+            }
+
+            updateProgress(urls.length, urls.length);
+
+            // カニバリ分析
+            analyzeCannibalizations();
+
+            // 結果表示
+            displayResults();
+
+            document.getElementById('analyze-btn').disabled = false;
+            document.getElementById('progress-section').style.display = 'none';
+            document.getElementById('results-section').style.display = 'block';
+        }
+
+        // 進捗更新
+        function updateProgress(current, total) {
+            const percent = (current / total) * 100;
+            document.getElementById('progress-fill').style.width = `${percent}%`;
+            document.getElementById('progress-text').textContent = `${current} / ${total} ページを処理中`;
+        }
+
+        // 見出し取得
+        async function fetchHeadings(url) {
+            // CORSプロキシを使用
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+
+            try {
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+
+                if (!data.contents) {
+                    throw new Error('ページを取得できませんでした');
+                }
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+
+                // タイトル取得
+                const title = doc.querySelector('title')?.textContent ||
+                             doc.querySelector('h1')?.textContent ||
+                             url;
+
+                // 見出し取得 (H1, H2, H3) - 共通ナビ要素を除外
+                const headings = [];
+                const excludePatterns = [
+                    /カテゴリー\s*一覧/i,
+                    /新着記事/i,
+                    /人気記事/i,
+                    /ランキング/i,
+                    /関連記事/i,
+                    /おすすめ記事/i,
+                    /最新記事/i,
+                    /アーカイブ/i,
+                    /タグ一覧/i,
+                    /サイドバー/i,
+                    /フッター/i,
+                    /メニュー/i
+                ];
+                doc.querySelectorAll('h1, h2, h3').forEach(h => {
+                    const text = h.textContent.trim();
+                    if (text && text.length > 0) {
+                        // 除外パターンに一致するかチェック
+                        const shouldExclude = excludePatterns.some(pattern => pattern.test(text));
+                        if (!shouldExclude) {
+                            headings.push({
+                                level: h.tagName.toLowerCase(),
+                                text: text
+                            });
+                        }
+                    }
+                });
+
+                return { title, headings };
+            } catch (error) {
+                // フォールバック: 別のプロキシを試す
+                try {
+                    const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                    const response = await fetch(fallbackUrl);
+                    const html = await response.text();
+
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const title = doc.querySelector('title')?.textContent ||
+                                 doc.querySelector('h1')?.textContent ||
+                                 url;
+
+                    // 見出し取得 (H2, H3) - 共通ナビ要素を除外
+                    const headings = [];
+                    const excludePatterns = [
+                        /カテゴリー\s*一覧/i,
+                        /新着記事/i,
+                        /人気記事/i,
+                        /ランキング/i,
+                        /関連記事/i,
+                        /おすすめ記事/i,
+                        /最新記事/i,
+                        /アーカイブ/i,
+                        /タグ一覧/i,
+                        /サイドバー/i,
+                        /フッター/i,
+                        /メニュー/i
+                    ];
+                    doc.querySelectorAll('h1, h2, h3').forEach(h => {
+                        const text = h.textContent.trim();
+                        if (text && text.length > 0) {
+                            const shouldExclude = excludePatterns.some(pattern => pattern.test(text));
+                            if (!shouldExclude) {
+                                headings.push({
+                                    level: h.tagName.toLowerCase(),
+                                    text: text
+                                });
+                            }
+                        }
+                    });
+
+                    return { title, headings };
+                } catch (e) {
+                    throw new Error('取得失敗');
+                }
+            }
+        }
+
+        // スリープ関数
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // カニバリ分析
+        function analyzeCannibalizations() {
+            cannibalizations = [];
+
+            for (let i = 0; i < articlesData.length; i++) {
+                for (let j = i + 1; j < articlesData.length; j++) {
+                    const article1 = articlesData[i];
+                    const article2 = articlesData[j];
+
+                    if (article1.headings.length === 0 || article2.headings.length === 0) {
+                        continue;
+                    }
+
+                    const similarity = calculateSimilarity(article1.headings, article2.headings);
+                    const matchingHeadings = findMatchingHeadings(article1.headings, article2.headings);
+
+                    cannibalizations.push({
+                        article1,
+                        article2,
+                        similarity,
+                        matchingHeadings
+                    });
+                }
+            }
+
+            // 類似度でソート
+            cannibalizations.sort((a, b) => b.similarity - a.similarity);
+        }
+
+        // 類似度計算 (複合スコア: キーワード一致 + N-gram類似度)
+        function calculateSimilarity(headings1, headings2) {
+            const texts1 = headings1.map(h => normalizeText(h.text));
+            const texts2 = headings2.map(h => normalizeText(h.text));
+
+            // 全見出しを結合
+            const allText1 = texts1.join(' ');
+            const allText2 = texts2.join(' ');
+
+            // 1. 重要キーワードの一致率（日本語対応）
+            const keywords1 = extractKeywords(allText1);
+            const keywords2 = extractKeywords(allText2);
+
+            let keywordMatches = 0;
+            for (const kw of keywords1) {
+                if (keywords2.has(kw)) keywordMatches++;
+            }
+            const keywordSim = keywords1.size > 0
+                ? keywordMatches / Math.max(keywords1.size, keywords2.size)
+                : 0;
+
+            // 2. 見出し同士のベストマッチを探す
+            let bestMatches = [];
+            for (const t1 of texts1) {
+                let bestSim = 0;
+                for (const t2 of texts2) {
+                    const sim = textSimilarity(t1, t2);
+                    if (sim > bestSim) bestSim = sim;
+                }
+                if (bestSim > 0.15) {
+                    bestMatches.push(bestSim);
+                }
+            }
+
+            const matchRatio = bestMatches.length > 0
+                ? bestMatches.reduce((a, b) => a + b, 0) / Math.min(texts1.length, texts2.length)
+                : 0;
+
+            // 3. N-gram全体類似度
+            const overallNgramSim = textSimilarity(allText1, allText2);
+
+            // 最終スコア: キーワード一致を重視
+            const finalScore = (keywordSim * 0.5 + matchRatio * 0.3 + overallNgramSim * 0.2) * 100;
+
+            return Math.round(finalScore);
+        }
+
+        // テキスト正規化
+        function normalizeText(text) {
+            return text
+                .toLowerCase()
+                .replace(/[！？。、・「」『』【】（）\(\)\[\]\-\:：]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        // 日本語キーワード抽出（重要な単語を抽出）
+        function extractKeywords(text) {
+            const keywords = new Set();
+
+            // 重要な看護・医療関連キーワードを抽出
+            const importantPatterns = [
+                /看護師/g, /転職/g, /年収/g, /給料/g, /給与/g, /退職/g, /辞め/g,
+                /夜勤/g, /クリニック/g, /病院/g, /面接/g, /履歴書/g, /志望動機/g,
+                /キャリア/g, /資格/g, /やりがい/g, /ストレス/g, /人間関係/g,
+                /パワハラ/g, /離職/g, /異動/g, /新人/g, /1年目/g, /40代/g, /20代/g,
+                /美容/g, /訪問/g, /小児/g, /緩和ケア/g, /精神科/g, /外来/g,
+                /准看護師/g, /正看護師/g, /つらい/g, /きつい/g, /向いて/g,
+                /メリット/g, /デメリット/g, /選び方/g, /方法/g, /理由/g
+            ];
+
+            for (const pattern of importantPatterns) {
+                const matches = text.match(pattern);
+                if (matches) {
+                    matches.forEach(m => keywords.add(m));
+                }
+            }
+
+            return keywords;
+        }
+
+        // テキスト類似度 (N-gram ベース)
+        function textSimilarity(text1, text2) {
+            if (text1 === text2) return 1;
+
+            const ngrams1 = getNgrams(text1, 2);
+            const ngrams2 = getNgrams(text2, 2);
+
+            if (ngrams1.size === 0 || ngrams2.size === 0) return 0;
+
+            let intersection = 0;
+            for (const ngram of ngrams1) {
+                if (ngrams2.has(ngram)) intersection++;
+            }
+
+            const union = ngrams1.size + ngrams2.size - intersection;
+            return intersection / union;
+        }
+
+        // N-gram生成
+        function getNgrams(text, n) {
+            const ngrams = new Set();
+            for (let i = 0; i <= text.length - n; i++) {
+                ngrams.add(text.substring(i, i + n));
+            }
+            return ngrams;
+        }
+
+        // マッチする見出しを検索（より緩い基準）
+        function findMatchingHeadings(headings1, headings2) {
+            const matches = [];
+
+            for (const h1 of headings1) {
+                for (const h2 of headings2) {
+                    const t1 = normalizeText(h1.text);
+                    const t2 = normalizeText(h2.text);
+
+                    // N-gram類似度
+                    const ngramSim = textSimilarity(t1, t2);
+
+                    // 共通キーワード
+                    const words1 = new Set(t1.split(/\s+/).filter(w => w.length >= 2));
+                    const words2 = new Set(t2.split(/\s+/).filter(w => w.length >= 2));
+                    let commonCount = 0;
+                    for (const w of words1) {
+                        if (words2.has(w)) commonCount++;
+                    }
+                    const wordSim = words1.size > 0 ? commonCount / Math.max(words1.size, words2.size) : 0;
+
+                    // 複合スコア
+                    const combinedSim = Math.max(ngramSim, wordSim * 0.8);
+
+                    if (combinedSim > 0.2) {  // しきい値を大幅に下げた
+                        matches.push({
+                            heading1: h1.text,
+                            heading2: h2.text,
+                            similarity: Math.round(combinedSim * 100)
+                        });
+                    }
+                }
+            }
+
+            return matches.sort((a, b) => b.similarity - a.similarity);
+        }
+
+        // 結果表示
+        function displayResults() {
+            displayCannibalizations();
+            displayHeadingsList();
+        }
+
+        // カニバリ結果表示
+        function displayCannibalizations() {
+            const filterLevel = parseInt(document.getElementById('filter-level')?.value || 40);
+            const container = document.getElementById('cannibalization-results');
+
+            const filtered = cannibalizations.filter(c => c.similarity >= filterLevel);
+
+            if (filtered.length === 0) {
+                const levelText = filterLevel >= 60 ? '◎要対策' : filterLevel >= 40 ? '◎○要対策・要確認' : '◎○△すべて';
+                container.innerHTML = `
+                    <div class="no-results">
+                        <p>🎉 ${levelText}レベルのカニバリは検出されませんでした。</p>
+                        <p style="margin-top: 8px; font-size: 14px;">フィルターを変更すると、より多くのペアを確認できます。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => {
+                // ◎○△表記とラベル
+                let riskLevel, riskLabel, badgeClass, showBadge;
+                if (c.similarity >= 60) {
+                    riskLevel = '◎';
+                    riskLabel = '要対策';
+                    badgeClass = 'similarity-high';
+                    showBadge = true;
+                } else if (c.similarity >= 40) {
+                    riskLevel = '○';
+                    riskLabel = '要確認';
+                    badgeClass = 'similarity-medium';
+                    showBadge = true;
+                } else {
+                    riskLevel = '△';
+                    riskLabel = '関連あり';
+                    badgeClass = 'similarity-low';
+                    showBadge = false;  // △は右上バッジ非表示
+                }
+
+                // 解決策の提案
+                let solutionHtml = '';
+                if (c.similarity >= 40) {
+                    const solutions = getSolutions(c.similarity, c.matchingHeadings);
+                    solutionHtml = `
+                        <div class="solution-box">
+                            <h4>💡 推奨アクション</h4>
+                            <ul>
+                                ${solutions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="cannibalization-item">
+                        <div class="cannibalization-header">
+                            <span>${riskLevel} ${riskLabel}</span>
+                            ${showBadge ? `<span class="similarity-badge ${badgeClass}">${riskLabel}</span>` : ''}
+                        </div>
+                        <div class="article-pair">
+                            <div class="article-box">
+                                <h4>記事1</h4>
+                                <a href="${c.article1.url}" target="_blank">${escapeHtml(c.article1.title)}</a>
+                                <ul class="headings-list">
+                                    ${c.article1.headings.slice(0, 5).map(h =>
+                                        `<li><strong>${h.level.toUpperCase()}:</strong> ${escapeHtml(h.text)}</li>`
+                                    ).join('')}
+                                    ${c.article1.headings.length > 5 ? `<li>... 他 ${c.article1.headings.length - 5} 件</li>` : ''}
+                                </ul>
+                            </div>
+                            <div class="article-box">
+                                <h4>記事2</h4>
+                                <a href="${c.article2.url}" target="_blank">${escapeHtml(c.article2.title)}</a>
+                                <ul class="headings-list">
+                                    ${c.article2.headings.slice(0, 5).map(h =>
+                                        `<li><strong>${h.level.toUpperCase()}:</strong> ${escapeHtml(h.text)}</li>`
+                                    ).join('')}
+                                    ${c.article2.headings.length > 5 ? `<li>... 他 ${c.article2.headings.length - 5} 件</li>` : ''}
+                                </ul>
+                            </div>
+                        </div>
+                        ${c.matchingHeadings.length > 0 ? `
+                            <div class="matching-headings">
+                                <h4>類似している見出し</h4>
+                                <ul>
+                                    ${c.matchingHeadings.slice(0, 5).map(m =>
+                                        `<li>「${escapeHtml(m.heading1)}」 ⇔ 「${escapeHtml(m.heading2)}」</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${solutionHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 見出し一覧表示
+        function displayHeadingsList() {
+            const container = document.getElementById('headings-list');
+
+            container.innerHTML = `
+                <table class="headings-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">URL</th>
+                            <th style="width: 20%;">タイトル</th>
+                            <th style="width: 50%;">見出し</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${articlesData.map(article => `
+                            <tr>
+                                <td><a href="${article.url}" target="_blank">${escapeHtml(article.url)}</a></td>
+                                <td>${escapeHtml(article.title)}</td>
+                                <td>
+                                    ${article.error ?
+                                        `<span style="color: #d32f2f;">エラー: ${escapeHtml(article.error)}</span>` :
+                                        article.headings.map(h =>
+                                            `<span style="display: block; margin: 2px 0; font-size: 13px;">
+                                                <strong>${h.level.toUpperCase()}:</strong> ${escapeHtml(h.text)}
+                                            </span>`
+                                        ).join('')
+                                    }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // CSV出力
+        function exportResults() {
+            const filterLevel = parseInt(document.getElementById('filter-level')?.value || 40);
+            const filtered = cannibalizations.filter(c => c.similarity >= filterLevel);
+
+            let csv = 'URL1,タイトル1,URL2,タイトル2,リスクレベル,類似見出し\n';
+
+            filtered.forEach(c => {
+                const matchingTexts = c.matchingHeadings.map(m =>
+                    `${m.heading1} ⇔ ${m.heading2}`
+                ).join(' | ');
+
+                const riskLabel = c.similarity >= 60 ? '◎要対策' : c.similarity >= 40 ? '○要確認' : '△関連あり';
+                csv += `"${c.article1.url}","${c.article1.title}","${c.article2.url}","${c.article2.title}","${riskLabel}","${matchingTexts}"\n`;
+            });
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `cannibalization_report_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 見出しリストCSV出力（1記事1行）
+        function exportHeadingsList() {
+            let csv = 'URL,タイトル,見出し\n';
+
+            articlesData.forEach(article => {
+                const url = article.url;
+                const title = article.title.replace(/"/g, '""');
+
+                if (article.error) {
+                    csv += `"${url}","${title}","エラー: ${article.error}"\n`;
+                } else if (article.headings.length === 0) {
+                    csv += `"${url}","${title}","見出しなし"\n`;
+                } else {
+                    // 見出しを「<H2>見出し1 <H3>見出し2...」の形式でまとめる
+                    const headingsText = article.headings.map(h =>
+                        `<${h.level.toUpperCase()}>${h.text}`
+                    ).join(' ').replace(/"/g, '""');
+                    csv += `"${url}","${title}","${headingsText}"\n`;
+                }
+            });
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `headings_list_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // HTMLエスケープ
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 解決策を提案
+        function getSolutions(similarity, matchingHeadings) {
+            const solutions = [];
+
+            if (similarity >= 60) {
+                // ◎ 要対策
+                solutions.push('記事の統合を検討（どちらかに内容をまとめて、もう片方は301リダイレクト）');
+                solutions.push('片方の記事の切り口を大きく変える（ターゲット読者や目的を明確に差別化）');
+                solutions.push('canonical タグで正規URLを指定');
+            } else if (similarity >= 40) {
+                // ○ 要確認
+                solutions.push('各記事の検索キーワード（狙うクエリ）を明確に分ける');
+                solutions.push('類似見出しの表現や内容を差別化する');
+                solutions.push('内部リンクで相互に関連付け、役割の違いを明確にする');
+            }
+
+            return solutions;
+        }
+    </script>
+</body>
+</html>
